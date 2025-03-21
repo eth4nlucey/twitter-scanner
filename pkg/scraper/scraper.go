@@ -8,35 +8,32 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-// ScrapeProfile fetches page content from a URL with realistic user-agent
-func ScrapeProfile(url string) (string, error) {
+// FetchProfile uses ChromeDP to render JavaScript pages properly
+func FetchProfile(url string) string {
+	// Create ChromeDP context with options to prevent bot detection
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "+
-			"AppleWebKit/537.36 (KHTML, like Gecko) "+
-			"Chrome/123.0.0.0 Safari/537.36"),
-		chromedp.Flag("headless", true),
+		chromedp.Flag("headless", false), // Keep visible for debugging
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("ignore-certificate-errors", true),
+		chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
 	)
 
 	ctx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
 
-	ctx, timeoutCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer timeoutCancel()
+	ctx, cancel = chromedp.NewContext(ctx)
+	defer cancel()
 
-	ctx, ctxCancel := chromedp.NewContext(ctx)
-	defer ctxCancel()
-
-	var content string
+	// Fetch HTML from X (Twitter) using ChromeDP
+	var html string
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(url),
-		chromedp.WaitVisible(`body`, chromedp.ByQuery),
-		chromedp.OuterHTML(`html`, &content),
+		chromedp.Sleep(5*time.Second),     // Allow time for JS to load
+		chromedp.OuterHTML("html", &html), // Extract entire HTML
 	)
-
 	if err != nil {
-		log.Printf("Chromedp error: %v", err)
-		return "", err
+		log.Fatal("Failed to fetch profile:", err)
 	}
 
-	return content, nil
+	return html
 }
